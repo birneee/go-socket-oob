@@ -19,6 +19,7 @@ func DstOptsLen(datalen int) int {
 
 // min data size is 6 byte.
 // data length must be multiple of 8 minus 2.
+// using IPv6 destination options might required root privileges.
 func appendDestOpts(oob []byte, dataLen int) (newOob []byte, destOptsData []byte, err error) {
 	const firstBlockSize = 6
 	const blockSize = 8

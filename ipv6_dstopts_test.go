@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// test might require root privileges
 func TestSendSingleBlock(t *testing.T) {
 	udpConn, err := net.ListenUDP("udp6", net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.IPv6Loopback(), 0)))
 	assert.NoError(t, err)
@@ -24,6 +25,7 @@ func TestSendSingleBlock(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// test might require root privileges
 func TestSendTwoBlocks(t *testing.T) {
 	udpConn, err := net.ListenUDP("udp6", net.UDPAddrFromAddrPort(netip.AddrPortFrom(netip.IPv6Loopback(), 0)))
 	assert.NoError(t, err)
