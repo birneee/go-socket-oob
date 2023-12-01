@@ -1,4 +1,4 @@
-module go-socket-oob
+module github.com/birneee/go-socket-oob
 
 go 1.21
 
