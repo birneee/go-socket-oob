@@ -1,21 +1,12 @@
-package go_socket_oob
+package socket_oob
 
 import (
-	"fmt"
 	"golang.org/x/sys/unix"
 	"net"
 	"net/netip"
 	"syscall"
 	"unsafe"
 )
-
-type GroReadResult struct {
-	FullBuf     []byte
-	SegmentSize int
-	OOB         []byte
-	Flags       int
-	RemoteAddr  netip.AddrPort
-}
 
 func appendUdpGenericReceiveOffloadMsg(oob []byte) (newOOB []byte) {
 	const dataLen = 4
@@ -25,35 +16,29 @@ func appendUdpGenericReceiveOffloadMsg(oob []byte) (newOOB []byte) {
 }
 
 // ReadGRO uses generic receive offload
-func ReadGRO(conn *net.UDPConn, b []byte, oob []byte) (GroReadResult, error) {
+func ReadGRO(conn *net.UDPConn, b []byte, oob []byte) (Segments, []byte, int, netip.AddrPort, error) {
 	oob = appendUdpGenericReceiveOffloadMsg(oob)
 	n, oobn, flags, addr, err := conn.ReadMsgUDPAddrPort(b, oob)
 	if err != nil {
-		return GroReadResult{}, err
+		return Segments{}, nil, 0, netip.AddrPort{}, err
 	}
-	var segmentSize *int
+	segmentSize := n
 	cmsgIter := iterateCmsgs(oob[:oobn])
 	for cmsgIter.HasNext() {
 		cmsg := cmsgIter.Next()
 		if cmsg.Hdr.Level == unix.IPPROTO_UDP && cmsg.Hdr.Type == unix.UDP_GRO {
-			segmentSize = (*int)(unsafe.Pointer(&cmsg.Data[0]))
+			segmentSize = *(*int)(unsafe.Pointer(&cmsg.Data[0]))
 		}
 	}
-	if segmentSize == nil {
-		return GroReadResult{}, fmt.Errorf("gro failed")
-	}
-	return GroReadResult{
-		FullBuf:     b[:n],
-		SegmentSize: *segmentSize,
-		OOB:         oob,
-		Flags:       flags,
-		RemoteAddr:  addr,
-	}, nil
+	return Segments{
+		Buf:            b[:n],
+		MaxSegmentSize: segmentSize,
+	}, oob[:oobn], flags, addr, nil
 }
 
-// isGROSupported tests if the kernel supports GRO.
+// IsGROSupported tests if the kernel supports GRO.
 // Sending with GRO might still fail later on, if the interface doesn't support it.
-func isGROSupported(conn *net.UDPConn) bool {
+func IsGROSupported(conn *net.UDPConn) bool {
 	rawConn, err := conn.SyscallConn()
 	if err != nil {
 		return false
@@ -67,9 +52,9 @@ func isGROSupported(conn *net.UDPConn) bool {
 	return serr == nil
 }
 
-// isGROEnabled tests if GSO is enabled on this socket.
+// IsGROEnabled tests if GSO is enabled on this socket.
 // Sending with GRO might still fail later on, if the interface doesn't support it.
-func isGROEnabled(conn *net.UDPConn) bool {
+func IsGROEnabled(conn *net.UDPConn) bool {
 	rawConn, err := conn.SyscallConn()
 	if err != nil {
 		return false
@@ -84,7 +69,7 @@ func isGROEnabled(conn *net.UDPConn) bool {
 	return serr == nil && enabled != 0
 }
 
-func enableGRO(conn *net.UDPConn) error {
+func EnableGRO(conn *net.UDPConn) error {
 	rawConn, err := conn.SyscallConn()
 	if err != nil {
 		return err

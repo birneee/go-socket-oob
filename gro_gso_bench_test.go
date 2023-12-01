@@ -1,15 +1,14 @@
-package go_socket_oob
+package socket_oob
 
 import (
 	"github.com/stretchr/testify/require"
-	"math"
 	"net"
 	"testing"
 	"time"
 )
 
 func BenchmarkGsoGro(b *testing.B) {
-	bufSize := math.MaxUint16 - 8 // not sure why -8
+	bufSize := MaxGSOBufSize
 	segmentSize := uint16(1500)
 
 	serverConn := newGsoGroConn(b)
@@ -40,7 +39,7 @@ func BenchmarkGsoGro(b *testing.B) {
 		buf := make([]byte, bufSize)
 	loop:
 		for {
-			result, err := ReadGRO(clientConn, buf, nil)
+			segments, _, _, _, err := ReadGRO(clientConn, buf, nil)
 			require.NoError(b, err)
 			select {
 			case <-stop:
@@ -49,7 +48,7 @@ func BenchmarkGsoGro(b *testing.B) {
 				break loop
 			default: // continue
 			}
-			numBytesRead += len(result.FullBuf)
+			numBytesRead += len(segments.Buf)
 		}
 	}()
 	b.ResetTimer()

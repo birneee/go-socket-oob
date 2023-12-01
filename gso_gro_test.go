@@ -1,4 +1,4 @@
-package go_socket_oob
+package socket_oob
 
 import (
 	"github.com/stretchr/testify/require"
@@ -11,11 +11,11 @@ func newGsoGroConn(t require.TestingT) *net.UDPConn {
 	anyLocalAddr := netip.MustParseAddrPort("[::]:0")
 	conn, err := net.ListenUDP("udp", net.UDPAddrFromAddrPort(anyLocalAddr))
 	require.NoError(t, err)
-	require.True(t, isGSOSupported(conn))
-	require.True(t, isGROSupported(conn))
-	err = enableGRO(conn)
+	require.True(t, IsGSOSupported(conn))
+	require.True(t, IsGROSupported(conn))
+	err = EnableGRO(conn)
 	require.NoError(t, err)
-	require.True(t, isGROEnabled(conn))
+	require.True(t, IsGROEnabled(conn))
 	return conn
 }
 
@@ -30,8 +30,8 @@ func TestGsoGro(t *testing.T) {
 		require.Equal(t, 10000, n)
 	}()
 	buf := make([]byte, 100000)
-	result, err := ReadGRO(clientConn, buf, nil)
+	segments, _, _, _, err := ReadGRO(clientConn, buf, nil)
 	require.NoError(t, err)
-	require.Equal(t, 10000, len(result.FullBuf))
-	require.Equal(t, 1000, result.SegmentSize)
+	require.Equal(t, 10000, len(segments.Buf))
+	require.Equal(t, 1000, segments.MaxSegmentSize)
 }

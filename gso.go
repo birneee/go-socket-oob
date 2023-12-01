@@ -1,12 +1,15 @@
-package go_socket_oob
+package socket_oob
 
 import (
 	"golang.org/x/sys/unix"
+	"math"
 	"net"
 	"net/netip"
 	"syscall"
 	"unsafe"
 )
+
+const MaxGSOBufSize = math.MaxUint16 - 8
 
 func appendUDPSegmentSizeMsg(oob []byte, size uint16) []byte {
 	const dataLen = 2 // payload is a uint16
@@ -21,9 +24,9 @@ func WriteGSO(conn *net.UDPConn, b []byte, size uint16, addr netip.AddrPort, oob
 	return conn.WriteMsgUDPAddrPort(b, oob, addr)
 }
 
-// isGSOSupported tests if the kernel supports GSO.
+// IsGSOSupported tests if the kernel supports GSO.
 // Sending with GSO might still fail later on, if the interface doesn't support it.
-func isGSOSupported(conn *net.UDPConn) bool {
+func IsGSOSupported(conn *net.UDPConn) bool {
 	rawConn, err := conn.SyscallConn()
 	if err != nil {
 		return false
