@@ -1,4 +1,4 @@
-package go_udp
+package go_socket_oob
 
 import (
 	"fmt"
